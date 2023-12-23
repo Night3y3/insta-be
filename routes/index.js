@@ -3,6 +3,7 @@ var router = express.Router();
 const userModel = require("./users");
 const passport = require("passport");
 const localStrategy = require("passport-local");
+const upload = require("./multer");
 
 // It helps to user kept logged in
 passport.use(new localStrategy(userModel.authenticate()));
@@ -27,8 +28,9 @@ router.get("/search", isLoggedIn, function (req, res) {
   res.render("search", { footer: true });
 });
 
-router.get("/edit", isLoggedIn, function (req, res) {
-  res.render("edit", { footer: true });
+router.get("/edit", isLoggedIn, async function (req, res) {
+  const user = await userModel.findOne({ username: req.session.passport.user });
+  res.render("edit", { footer: true, user: user });
 });
 
 router.get("/upload", isLoggedIn, function (req, res) {
@@ -68,6 +70,19 @@ router.get("/logout", function (req, res, next) {
     }
     res.redirect("/");
   });
+});
+
+router.post("/update", upload.single("image"), async function (req, res) {
+  // we find the user who has logged in and update the details
+  const user = await userModel.findOneAndUpdate(
+    { username: req.session.passport.user },
+    { username: req.body.username, name: req.body.name, bio: req.body.bio },
+    { new: true }
+  );
+
+  user.profileImage = req.file.filename;
+  await user.save();
+  res.redirect("/profile");
 });
 
 function isLoggedIn(req, res, next) {
